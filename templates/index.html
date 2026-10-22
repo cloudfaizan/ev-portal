@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ app_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">⚡</span><div><strong>ChargePoint</strong><small>EV charging made predictable</small></div></div>
+  <nav><a href="#stations">Find chargers</a><a href="#reserve">Reserve</a><a href="#queue">Join queue</a><a href="#fault">Report issue</a></nav>
+</header>
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">EV DRIVER SELF-SERVICE</span>
+      <h1>Find a charger.<br><em>Skip the guesswork.</em></h1>
+      <p>Check simulated charger availability around Hyderabad, reserve a 30-minute slot, or join a station queue before you arrive.</p>
+      <a class="button primary" href="#stations">Explore charging stations <span>→</span></a>
+      <p class="demo-note">Demo environment · Charger status and stations are simulated</p>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+      <div class="bolt">ϟ</div><div class="charge-label">CHARGE<br>SMARTER</div>
+      <div class="mini-card"><span class="live-dot"></span><div><strong>Live demo status</strong><small>Availability refreshes on page load</small></div></div>
+    </div>
+  </section>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}<section class="flash-area">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</section>{% endif %}
+  {% endwith %}
+
+  <section class="stats">
+    <div class="stat-card"><span class="stat-icon green">⚡</span><div><span class="stat-label">Available chargers</span><strong>{{ chargers|selectattr('status','equalto','available')|list|length }}</strong><small>Ready to use</small></div></div>
+    <div class="stat-card"><span class="stat-icon blue">◷</span><div><span class="stat-label">Charging stations</span><strong>{{ stations|length }}</strong><small>Across Hyderabad demo areas</small></div></div>
+    <div class="stat-card"><span class="stat-icon orange">↗</span><div><span class="stat-label">Connector types</span><strong>2</strong><small>CCS2 and Type 2</small></div></div>
+  </section>
+
+  <section id="stations" class="section">
+    <div class="section-heading"><div><span class="eyebrow">DISCOVER</span><h2>Charging stations near you</h2><p>Search by station name or area and compare available chargers.</p></div>
+      <form class="search" method="get" action="/"><input name="q" value="{{ search }}" placeholder="Search Hitech City, Gachibowli..."><button class="button dark" type="submit">Search</button>{% if search %}<a class="clear" href="/">Clear</a>{% endif %}</form>
+    </div>
+    <div class="station-grid">
+      {% for station in stations %}
+      <article class="station-card">
+        <div class="station-visual"><span class="station-pin">⌖</span><span class="area-tag">{{ station.area }}</span><div class="station-symbol">⚡</div></div>
+        <div class="station-content">
+          <div class="station-title"><h3>{{ station.name }}</h3><span class="availability-pill {% if station.available_count > 0 %}open{% else %}busy-pill{% endif %}">{{ station.available_count }} available</span></div>
+          <p class="address">⌖ {{ station.address }}</p>
+          <div class="station-footer"><span>{{ station.total_count }} chargers total</span><a href="#reserve">Reserve a slot ↗</a></div>
+        </div>
+      </article>
+      {% else %}
+      <div class="empty">No stations match your search. Try another area.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section id="reserve" class="section action-section">
+    <div class="section-heading"><div><span class="eyebrow">PLAN AHEAD</span><h2>Reserve a charging slot</h2><p>Reservations are demo records and last 30 minutes.</p></div></div>
+    <form class="form-card" method="post" action="/reserve">
+      <div class="form-grid">
+        <label>Your name<input name="customer_name" required maxlength="80" placeholder="e.g. Asha Reddy"></label>
+        <label>Vehicle model<input name="vehicle" required maxlength="80" placeholder="e.g. Tata Nexon EV"></label>
+        <label class="wide">Available charger<select name="charger_id" required><option value="">Choose a charger</option>{% for charger in chargers if charger.status == 'available' %}<option value="{{ charger.id }}">{{ charger.station_name }} · {{ charger.code }} · {{ charger.power_kw }} kW · {{ charger.connector }}</option>{% endfor %}</select></label>
+        <label>Slot start<input type="datetime-local" name="slot_start" required></label>
+      </div>
+      <button class="button primary" type="submit">Confirm reservation <span>→</span></button>
+      <p class="form-hint">A slot is 30 minutes. This demo checks overlapping reservations for the same charger.</p>
+    </form>
+  </section>
+
+  <section id="queue" class="section split-section">
+    <div class="section-intro"><span class="eyebrow">NO CHARGER FREE?</span><h2>Join the station queue</h2><p>Register your vehicle at a station and appear in the waiting list. In this demo, queue positions are informational and are not automatically assigned to a charger.</p>
+      <div class="tip"><span>↗</span><div><strong>Save time on arrival</strong><small>Choose your preferred station and keep track of the queue.</small></div></div>
+    </div>
+    <form class="form-card compact" method="post" action="/queue">
+      <label>Your name<input name="customer_name" required maxlength="80" placeholder="Your full name"></label>
+      <label>Vehicle model<input name="vehicle" required maxlength="80" placeholder="Vehicle model"></label>
+      <label>Station<select name="station_id" required><option value="">Choose a station</option>{% for station in stations %}<option value="{{ station.id }}">{{ station.name }} — {{ station.area }}</option>{% endfor %}</select></label>
+      <button class="button dark full" type="submit">Join waiting queue</button>
+    </form>
+  </section>
+
+  <section id="fault" class="section action-section">
+    <div class="section-heading"><div><span class="eyebrow">HELP KEEP IT RELIABLE</span><h2>Report a faulty charger</h2><p>Submit a report to mark a charger as faulty in the demo system.</p></div></div>
+    <form class="form-card" method="post" action="/fault">
+      <div class="form-grid">
+        <label>Your name<input name="customer_name" required maxlength="80" placeholder="Your name"></label>
+        <label>Charger<select name="charger_id" required><option value="">Select charger</option>{% for charger in chargers %}<option value="{{ charger.id }}">{{ charger.station_name }} · {{ charger.code }}</option>{% endfor %}</select></label>
+        <label>Issue type<select name="issue" required><option value="">Select issue</option><option>Connector damaged</option><option>Charging failed</option><option>Screen not working</option><option>Payment terminal issue</option><option>Other</option></select></label>
+        <label>Details (optional)<input name="details" maxlength="1000" placeholder="Describe what happened"></label>
+      </div>
+      <button class="button outline" type="submit">Submit fault report</button>
+    </form>
+  </section>
+
+  <section class="section records-section">
+    <div class="records-grid">
+      <div><div class="section-heading small-heading"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>Reservations</h2></div></div>
+        <div class="record-list">{% for item in reservations %}<div class="record"><span class="record-icon">⚡</span><div class="record-main"><strong>{{ item.customer_name }}</strong><small>{{ item.station_name }} · {{ item.code }}</small><small>{{ item.slot_start|replace('T',' ') }}</small></div><span class="status-tag">{{ item.status }}</span></div>{% else %}<p class="muted">No reservations yet. Try the booking form above.</p>{% endfor %}</div>
+      </div>
+      <div><div class="section-heading small-heading"><div><span class="eyebrow">WAITING LIST</span><h2>Queue activity</h2></div></div>
+        <div class="record-list">{% for item in queue_entries %}<div class="record"><span class="record-icon queue-icon">◷</span><div class="record-main"><strong>{{ item.customer_name }}</strong><small>{{ item.station_name }} · {{ item.vehicle }}</small><small>Joined {{ item.created_at|replace('T',' ') }}</small></div><span class="status-tag waiting-tag">{{ item.status }}</span></div>{% else %}<p class="muted">No one is waiting right now.</p>{% endfor %}</div>
+      </div>
+    </div>
+  </section>
+  <section class="dev-note"><strong>For your DevOps capstone:</strong> application metrics are exposed at <code>/metrics</code>; health check at <code>/healthz</code>; JSON demo APIs at <code>/api/stations</code> and <code>/api/chargers</code>. See README for Docker, EC2, Prometheus, and load-test instructions.</section>
+</main>
+<footer><div class="brand"><span class="brand-mark">⚡</span><div><strong>ChargePoint</strong><small>EV charging made predictable</small></div></div><span>Student capstone demo · Simulated data only</span></footer>
+</body>
+</html>

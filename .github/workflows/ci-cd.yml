@@ -1,0 +1,58 @@
+
+name: EV Portal CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    name: Build, Push and Deploy
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PWD }}
+
+      - name: Build and push Docker image
+        env:
+          IMAGE: dockerfaizan007/ev-charging-portal
+          TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Configure EKS access
+        run: |
+          aws eks update-kubeconfig --name ev-portal-eks --region us-east-1
+          kubectl auth can-i patch deployments -n default
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f deployment.yaml -f service.yaml
+
+      - name: Deploy new image
+        env:
+          IMAGE: dockerfaizan007/ev-charging-portal
+          TAG: ${{ github.sha }}
+        run: |
+          kubectl set image deployment/ev-portal ev-portal="$IMAGE:$TAG" -n default
+          kubectl rollout status deployment/ev-portal -n default --timeout=180s

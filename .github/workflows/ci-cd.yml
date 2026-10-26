@@ -42,7 +42,9 @@ jobs:
 
       - name: Configure EKS access
         run: |
-          aws eks update-kubeconfig --name ev-portal-eks --region us-east-1
+          aws eks update-kubeconfig \
+            --name ev-portal-eks \
+            --region us-east-1
           kubectl auth can-i patch deployments -n default
 
       - name: Apply Kubernetes manifests
@@ -54,15 +56,20 @@ jobs:
           IMAGE: dockerfaizan007/ev-charging-portal
           TAG: ${{ github.sha }}
         run: |
-          kubectl set image deployment/ev-portal ev-portal="$IMAGE:$TAG" -n default
-          kubectl rollout status deployment/ev-portal -n default --timeout=180s
+          kubectl set image deployment/ev-portal \
+            ev-portal="$IMAGE:$TAG" \
+            -n default
+          kubectl rollout status deployment/ev-portal \
+            -n default \
+            --timeout=180s
 
       - name: Notify Slack
         if: always()
-        uses: slackapi/slack-github-action@v4.0.0
+        uses: slackapi/slack-github-action@v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
-          errors: true
           payload: |
-            text: "EV Portal CI/CD status: ${{ job.status }} | Repository: ${{ github.repository }} | Branch: ${{ github.ref_name }} | Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            {
+              "text": "EV Portal CI/CD status: ${{ job.status }} | Repository: ${{ github.repository }} | Branch: ${{ github.ref_name }} | Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
